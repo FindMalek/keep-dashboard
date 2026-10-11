@@ -1,0 +1,7 @@
+[Unit]
+Description=Handle dashboard action requests
+RequiresMountsFor=/srv
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-agent process

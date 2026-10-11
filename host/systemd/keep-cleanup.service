@@ -1,0 +1,7 @@
+[Unit]
+Description=Tidy Dokploy: failed/stuck deployments, orphaned folders
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-cleanup

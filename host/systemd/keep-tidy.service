@@ -1,0 +1,6 @@
+[Unit]
+Description=Free disk space: docker leftovers, old logs, caches, temp files
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-tidy

@@ -1,0 +1,7 @@
+[Unit]
+Description=Write job status for the dashboard
+RequiresMountsFor=/srv
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-agent status

@@ -1,0 +1,34 @@
+# Example deployment (Dokploy "Raw" compose or plain docker compose). Put it behind your VPN: the dashboard has
+# no login of its own and its buttons can reboot the host. Remove the integrations you don't run.
+services:
+  dashboard:
+    build: .
+    restart: unless-stopped
+    environment:
+      MOUNTS: "system=/:/host/fs/system,data=/srv:/data"
+      NET_IFACES: "eth0=lan,tailscale0=tailscale"
+      SERVICES: "photos=https://photos.example.com,drive=https://drive.example.com"
+      DDNS_HOST: "home.example.com"
+      GARAGE_ADMIN_URL: "http://garage:3903"
+      DOKPLOY_URL: "http://dokploy:3000"
+      DOKPLOY_PUBLIC_URL: "https://dokploy.example.com"
+      KUMA_URL: "http://uptime-kuma:3001"
+      KUMA_PUBLIC_URL: "https://kuma.example.com"
+      NAVIDROME_PUBLIC_URL: "https://music.example.com"
+      MINIFLUX_PUBLIC_URL: "https://rss.example.com"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/hostname:/host/etc/hostname:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/lib/keep-dashboard:/host/fs/system:ro
+      - /srv/keep-dashboard:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Optional integrations:
+      - /srv/garage/garage.toml:/host/garage.toml:ro
+      - /etc/dokploy-api.env:/host/dokploy-api.env:ro
+      - /srv/uptime-kuma/metrics.key:/host/kuma-metrics.key:ro
+      - /srv/tools/speedtest:/host/speedtest:ro
+    ports:
+      # Bind to your VPN address, or drop this and route through your reverse proxy.
+      - "100.64.0.10:8090:8090"
