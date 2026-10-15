@@ -1169,6 +1169,36 @@ a:focus-visible {
   background: var(--crit);
 }
 
+.bars {
+  position: relative;
+  outline: none;
+}
+
+.bars:focus-visible {
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.bar-active {
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+/* The hovered bar's half hour and its outages, above the strip. */
+.bars-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform: translateX(-50%);
+  padding: 4px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+}
+
 .table.uptime {
   table-layout: fixed;
 }

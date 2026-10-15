@@ -59,6 +59,13 @@ export class HistoryDb {
     }
   }
 
+  /** One key's 1-minute averages between two times (seconds), for detail like when a check was down. */
+  minutes(key: string, fromSec: number, toSec: number): { ts: number; avg: number }[] {
+    return this.db
+      .query<{ ts: number; avg: number }, [string, number, number]>("SELECT ts, avg FROM points WHERE key = ? AND ts >= ? AND ts < ? ORDER BY ts")
+      .all(key, fromSec, toSec);
+  }
+
   query(range: Exclude<RangeName, "live">, keys: string[], nowMs: number): RangeHistory {
     const { spanSec, stepSec } = RANGES[range];
     const end = Math.floor(nowMs / 1000 / stepSec) * stepSec;
