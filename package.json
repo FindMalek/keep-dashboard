@@ -5,7 +5,7 @@
   "scripts": {
     "start": "bun src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test src"
+    "test": "bun test src docker-proxy"
   },
   "dependencies": {
     "react": "19.3.0",

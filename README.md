@@ -78,8 +78,9 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
   `X-Keep-Gate: <value>` (Traefik: a `headers.customRequestHeaders` middleware, which also overwrites a value a
   client sends). Without it every API call is refused, so other containers on the same Docker network can't read
   the dashboard or press its buttons. `/healthz` stays open for uptime checks.
-- **No Docker socket in the container.** Docker is read through `docker-socket-proxy` allowing only
-  `GET /containers`, on a network only the dashboard shares.
+- **No Docker socket in the container.** Docker is read through `docker-proxy/`, which forwards only
+  `GET /containers/json` (not inspect, which would show other containers' secrets), on a network only the dashboard
+  shares.
 - **Buttons only ask.** The host agent decides: it accepts `reboot`, `tidy` and known jobs, refuses anything else.
 
 ### Configuration
