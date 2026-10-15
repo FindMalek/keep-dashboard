@@ -16,6 +16,11 @@ services:
       KUMA_PUBLIC_URL: "https://kuma.example.com"
       NAVIDROME_PUBLIC_URL: "https://music.example.com"
       MINIFLUX_PUBLIC_URL: "https://rss.example.com"
+      # Docker through the read-only proxy below (a :ro socket mount still allows the whole Docker API).
+      DOCKER_HOST: "tcp://docker-proxy:2375"
+      # Your reverse proxy's VPN-only route must add `X-Keep-Gate: <this>`; without it the API answers 403, so other
+      # containers that can reach :8090 can't use it. Generate one: openssl rand -hex 32
+      KEEP_GATE: ${KEEP_GATE}
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -23,12 +28,29 @@ services:
       - /etc/os-release:/host/etc/os-release:ro
       - /var/lib/keep-dashboard:/host/fs/system:ro
       - /srv/keep-dashboard:/data
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Optional integrations:
       - /srv/garage/garage.toml:/host/garage.toml:ro
       - /etc/dokploy-api.env:/host/dokploy-api.env:ro
       - /srv/uptime-kuma/metrics.key:/host/kuma-metrics.key:ro
       - /srv/tools/speedtest:/host/speedtest:ro
-    ports:
-      # Bind to your VPN address, or drop this and route through your reverse proxy.
-      - "100.64.0.10:8090:8090"
+    depends_on:
+      - docker-proxy
+    networks:
+      - default
+      - docker-api
+    # Route it through your reverse proxy (VPN-only, adding X-Keep-Gate) rather than publishing a port.
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      POST: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker-api
+
+networks:
+  docker-api:
+    internal: true
