@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { History, RangeName, Snapshot } from "../../shared/types";
+import type { History, RangeHistory, RangeName, Snapshot } from "../../shared/types";
 import { ContainersPanel } from "../components/containers-panel";
 import { CpuPanel } from "../components/cpu-panel";
 import { MemoryPanel } from "../components/memory-panel";
@@ -8,6 +8,7 @@ import { PageHeader, Tabs } from "../components/page-header";
 import { SensorsPanel } from "../components/sensors-panel";
 import type { SeriesView } from "../components/sparkline";
 import { StoragePanel } from "../components/storage-panel";
+import { rangeLabel as meta } from "../lib/range-label";
 import { useRangeHistory } from "../lib/use-range-history";
 
 const RANGES = ["live", "1h", "24h", "7d", "30d"] as const satisfies readonly RangeName[];
@@ -31,6 +32,11 @@ interface SystemPageProps {
 /** The machine itself: cpu, memory, network, disks, temperatures, containers, over a chosen time range. */
 export function SystemPage({ snapshot, history, historySize }: SystemPageProps) {
   const [range, setRange] = useState<RangeName>(storedRange);
+  // The temperature worth a graph: the cpu package, else the hottest sensor.
+  const mainSensor =
+    snapshot.sensors.find((sensor) => sensor.group === "cpu" && sensor.label === "package") ??
+    [...snapshot.sensors].sort((a, b) => b.tempC - a.tempC)[0];
+  const tempKey = mainSensor ? `temp:${mainSensor.group}:${mainSensor.label}` : "temp:none";
 
   const keys = useMemo(
     () => [
@@ -38,8 +44,10 @@ export function SystemPage({ snapshot, history, historySize }: SystemPageProps) 
       "mem",
       ...snapshot.network.flatMap((net) => [`net:${net.name}:rx`, `net:${net.name}:tx`]),
       ...snapshot.disks.flatMap((disk) => [`disk:${disk.name}:read`, `disk:${disk.name}:write`]),
+      tempKey,
+      "containers",
     ],
-    [snapshot.network, snapshot.disks],
+    [snapshot.network, snapshot.disks, tempKey],
   );
   const longTerm = useRangeHistory(range, keys);
 
@@ -53,6 +61,8 @@ export function SystemPage({ snapshot, history, historySize }: SystemPageProps) 
   }
 
   function view(key: string, secondaryKey?: string): SeriesView {
+    // Loading another range: an empty graph, not the live one under the wrong label.
+    if (range !== "live" && !longTerm) return { values: [], capacity: 1, stepSec: 1 };
     if (range === "live" || !longTerm) {
       return {
         values: history[key] ?? [],
@@ -70,7 +80,7 @@ export function SystemPage({ snapshot, history, historySize }: SystemPageProps) 
 
   return (
     <>
-      <PageHeader title="system" meta={range === "live" ? "last 5 minutes, every second" : `averages, last ${range}`}>
+      <PageHeader title="system" meta={meta(range, longTerm)}>
         <Tabs options={RANGES} value={range} onChange={selectRange} label="time range" />
       </PageHeader>
       <div className="grid system">
@@ -78,8 +88,8 @@ export function SystemPage({ snapshot, history, historySize }: SystemPageProps) 
         <MemoryPanel memory={snapshot.memory} series={view("mem")} />
         <NetworkPanel network={snapshot.network} view={view} />
         <StoragePanel mounts={snapshot.mounts} disks={snapshot.disks} view={view} />
-        <SensorsPanel sensors={snapshot.sensors} />
-        <ContainersPanel containers={snapshot.containers} />
+        <SensorsPanel sensors={snapshot.sensors} series={range === "live" ? undefined : view(tempKey)} />
+        <ContainersPanel containers={snapshot.containers} series={range === "live" ? undefined : view("containers")} />
       </div>
     </>
   );
