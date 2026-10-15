@@ -2,6 +2,11 @@ import type { ContainerStats } from "../shared/types";
 import { HOST_SYS, readText } from "../lib/host";
 
 const DOCKER_SOCKET = process.env.DOCKER_SOCKET ?? "/var/run/docker.sock";
+/**
+ * Set to a read-only socket proxy (e.g. http://docker-proxy:2375) instead of mounting the socket: a read-only bind
+ * mount of the socket still lets anything in this container drive the whole Docker API.
+ */
+const DOCKER_HOST = process.env.DOCKER_HOST?.replace(/^tcp:/, "http:");
 
 interface DockerContainer {
   Id: string;
@@ -43,7 +48,9 @@ export function createContainerCollector(coreCount: () => number): () => Promise
   return async () => {
     let containers: DockerContainer[];
     try {
-      const response = await fetch("http://docker/containers/json?all=1", { unix: DOCKER_SOCKET });
+      const response = DOCKER_HOST
+        ? await fetch(`${DOCKER_HOST}/containers/json?all=1`)
+        : await fetch("http://docker/containers/json?all=1", { unix: DOCKER_SOCKET });
       containers = (await response.json()) as DockerContainer[];
     } catch {
       return [];

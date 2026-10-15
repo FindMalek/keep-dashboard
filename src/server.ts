@@ -1,3 +1,4 @@
+import type { Server } from "bun";
 import index from "./web/index.html";
 import { loadConfig } from "./lib/config";
 import { HistoryStore } from "./lib/history";
@@ -17,6 +18,7 @@ import { createKumaCollector } from "./collectors/kuma";
 import { createHomeCollector } from "./collectors/home";
 import { ViewerLog } from "./lib/viewers";
 import { readText } from "./lib/host";
+import { gated } from "./lib/gate";
 import type {
   ActivityPayload,
   DeployEvent,
@@ -189,7 +191,7 @@ every(SECOND, tick);
 const server = Bun.serve({
   port: config.port,
   development: process.env.NODE_ENV !== "production",
-  routes: {
+  routes: gated({
     "/": index,
     "/apps": index,
     "/system": index,
@@ -197,7 +199,7 @@ const server = Bun.serve({
     "/activity": index,
     "/uptime": index,
     "/api/actions": {
-      POST: async (request) => {
+      POST: async (request: Request) => {
         // A custom header forces a CORS preflight, so other sites can't trigger actions from your browser.
         if (request.headers.get("x-keep-action") !== "1") return new Response("missing header", { status: 403 });
         const body = (await request.json().catch(() => null)) as { action?: unknown } | null;
@@ -208,7 +210,7 @@ const server = Bun.serve({
         return new Response(null, { status: 202 });
       },
     },
-    "/api/history": (request) => {
+    "/api/history": (request: Request) => {
       const params = new URL(request.url).searchParams;
       const range = params.get("range") as RangeName | null;
       if (!range || range === "live" || !(range in RANGES)) return new Response("bad range", { status: 400 });
@@ -231,13 +233,13 @@ const server = Bun.serve({
       };
       return Response.json(payload);
     },
-    "/api/snapshot": (request) => {
+    "/api/snapshot": (request: Request) => {
       viewers.seen(request);
       if (!latest) return new Response("warming up", { status: 503 });
       const payload: InitialPayload = { snapshot: latest, history: history.toJSON(), historySize: config.historySize };
       return Response.json(payload);
     },
-    "/api/stream": (request, server) => {
+    "/api/stream": (request: Request, server: Server<unknown>) => {
       server.timeout(request, 0);
       const closed = viewers.streaming(request);
       let self: ReadableStreamDefaultController<string> | null = null;
@@ -258,7 +260,7 @@ const server = Bun.serve({
       });
     },
     "/healthz": () => new Response(latest ? "ok" : "warming up", { status: latest ? 200 : 503 }),
-  },
+  }, process.env.KEEP_GATE),
 });
 
 console.log(`keep-dashboard on :${server.port}`);

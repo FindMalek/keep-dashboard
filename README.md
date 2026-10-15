@@ -42,7 +42,7 @@ red**, and they mean one thing: something is close to (orange) or at (red) its l
 ## How it works
 
 ```
-browser ──SSE 1 s──▶ Bun server (container) ──reads──▶ host /proc, /sys, docker socket (ro)
+browser ──SSE 1 s──▶ Bun server (container) ──reads──▶ host /proc, /sys, docker (read-only socket proxy)
                           │                         ──calls──▶ Garage, Dokploy, Kuma, AdGuard, Navidrome, Miniflux
                           │                         ──reads──▶ Speedtest Tracker's SQLite (ro)
                           └── /data (rw) ◀──writes── host/keep-agent  (jobs.json, activity.json, actions)
@@ -72,6 +72,17 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
    ```
 3. Optional: list your own systemd timers on the jobs page in `/srv/keep-dashboard/agent.json`.
 
+### Security
+
+- **VPN only, and only through your proxy.** Set `KEEP_GATE` to a long random value and have the VPN-only route add
+  `X-Keep-Gate: <value>` (Traefik: a `headers.customRequestHeaders` middleware, which also overwrites a value a
+  client sends). Without it every API call is refused, so other containers on the same Docker network can't read
+  the dashboard or press its buttons. `/healthz` stays open for uptime checks.
+- **No Docker socket in the container.** Docker is read through `docker-proxy/`, which forwards only
+  `GET /containers/json` (not inspect, which would show other containers' secrets), on a network only the dashboard
+  shares.
+- **Buttons only ask.** The host agent decides: it accepts `reboot`, `tidy` and known jobs, refuses anything else.
+
 ### Configuration
 
 | Variable | Default | |
@@ -85,6 +96,8 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
 | `KUMA_URL` | — | Uptime Kuma, read via `/metrics` with the API key in `KUMA_KEY` |
 | `KUMA_PUBLIC_URL`, `NAVIDROME_PUBLIC_URL`, `MINIFLUX_PUBLIC_URL` | — | where the panels' "open ↗" links go |
 | `SPEEDTEST_DB` | `/host/speedtest/database.sqlite` | Speedtest Tracker's database, mounted read-only |
+| `KEEP_GATE` | — | the secret your VPN route sends as `X-Keep-Gate`; unset, the API is open to whatever reaches the port |
+| `DOCKER_HOST` | — | `tcp://docker-proxy:2375`; without it, `DOCKER_SOCKET` (`/var/run/docker.sock`) |
 | `DATA_DIR` | `/data` | history DB, files from the host agent, `integrations.env` (Navidrome / AdGuard / Miniflux credentials) |
 
 Files the host side writes into `DATA_DIR` (all JSON): `jobs.json` and `activity.json` (agent), `actions.json`,
