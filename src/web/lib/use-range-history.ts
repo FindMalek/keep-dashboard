@@ -9,10 +9,9 @@ export function useRangeHistory(range: RangeName, keys: string[]): RangeHistory 
   const keyList = keys.join(",");
 
   useEffect(() => {
-    if (range === "live") {
-      setData(null);
-      return;
-    }
+    // A new range never shows the previous one's data, even for the moment its own is loading.
+    setData(null);
+    if (range === "live") return;
     let cancelled = false;
     const load = async (): Promise<void> => {
       try {

@@ -2,6 +2,7 @@ import type { ContainerStats } from "../../shared/types";
 import { bytes, percent } from "../lib/format";
 import { StatusSquare, type Status } from "./status-square";
 import { Panel } from "./panel";
+import { Sparkline, type SeriesView } from "./sparkline";
 
 function statusOf(container: ContainerStats): Status {
   if (container.state !== "running") return "down";
@@ -9,11 +10,13 @@ function statusOf(container: ContainerStats): Status {
   return "ok";
 }
 
-export function ContainersPanel({ containers }: { containers: ContainerStats[] }) {
+/** Over a chosen range (`series`), how many were running. */
+export function ContainersPanel({ containers, series }: { containers: ContainerStats[]; series?: SeriesView }) {
   const running = containers.filter((container) => container.state === "running").length;
 
   return (
     <Panel title="containers" area="ctr" meta={`${running} running / ${containers.length}`}>
+      {series && <Sparkline {...series} format={(value) => `${Math.round(value)} running`} label="running containers" height={40} />}
       <table className="table">
         <thead>
           <tr>
