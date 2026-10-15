@@ -217,6 +217,16 @@ const server = Bun.serve({
       const keys = (params.get("keys") ?? "").split(",").filter(Boolean).slice(0, 64);
       return Response.json(historyDb.query(range, keys, Date.now()));
     },
+    "/api/minutes": (request: Request) => {
+      const params = new URL(request.url).searchParams;
+      const key = params.get("key") ?? "";
+      const from = Number(params.get("from"));
+      const to = Number(params.get("to"));
+      // A bar's worth of detail, not a dump of the database.
+      if (!key || !Number.isFinite(from) || !Number.isFinite(to) || to <= from || to - from > 2 * 3600)
+        return new Response("key, from, to (at most 2 h)", { status: 400 });
+      return Response.json(historyDb.minutes(key, from, to));
+    },
     "/api/activity": async () => {
       const host = JSON.parse((await readText(`${config.dataDir}/activity.json`)) ?? "{}") as Partial<ActivityPayload>;
       const payload: ActivityPayload = {
