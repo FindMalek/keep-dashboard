@@ -70,7 +70,9 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
    cp host/systemd/* /etc/systemd/system/ && systemctl daemon-reload
    systemctl enable --now keep-agent.path keep-agent-status.timer keep-cleanup.timer keep-tidy.timer
    ```
-3. Optional: list your own systemd timers on the jobs page in `/srv/keep-dashboard/agent.json`.
+3. Optional: list your own systemd timers on the jobs page in `/srv/keep-dashboard/agent.json`, and apps that sleep
+   when idle under `switches` to get start/stop buttons:
+   `{"switches": {"minecraft": {"description": "game server", "filters": ["label=com.docker.compose.service=minecraft"]}}}`
 
 ### Security
 

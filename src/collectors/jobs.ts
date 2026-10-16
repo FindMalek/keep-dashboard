@@ -4,7 +4,7 @@ import type { ActionRecord, JobsStats, TidySummary, UsageStats } from "../shared
 import { readText } from "../lib/host";
 
 /** The host agent re-checks everything; this list only keeps junk out of the request queue. */
-const ALLOWED = /^(reboot|tidy|run:keep-[a-z-]+)$/;
+const ALLOWED = /^(reboot|tidy|run:keep-[a-z-]+|(start|stop):[a-z0-9-]+)$/;
 
 async function readJson<T>(path: string, fallback: T): Promise<T> {
   try {
@@ -16,11 +16,11 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 
 export async function collectJobs(dataDir: string): Promise<JobsStats> {
   const [status, actions, tidy] = await Promise.all([
-    readJson<Pick<JobsStats, "updatedAt" | "jobs">>(`${dataDir}/jobs.json`, { updatedAt: null, jobs: [] }),
+    readJson<Pick<JobsStats, "updatedAt" | "jobs" | "switches">>(`${dataDir}/jobs.json`, { updatedAt: null, jobs: [], switches: [] }),
     readJson<ActionRecord[]>(`${dataDir}/actions.json`, []),
     readJson<TidySummary | null>(`${dataDir}/tidy.json`, null),
   ]);
-  return { ...status, actions, tidy };
+  return { ...status, switches: status.switches ?? [], actions, tidy };
 }
 
 export async function collectUsage(dataDir: string): Promise<UsageStats> {

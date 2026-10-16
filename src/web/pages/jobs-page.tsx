@@ -86,6 +86,22 @@ export function JobsPage({ jobs }: { jobs: JobsStats }) {
             <span className="panel-meta">via keep-agent</span>
           </header>
           <div className="panel-body actions">
+            {jobs.switches.map((app) => (
+              <div className="action" key={app.name}>
+                <div>
+                  <h3>{app.name}</h3>
+                  <p className="muted small">
+                    {app.running ? "running" : "asleep"}
+                    {app.description && ` · ${app.description}`}
+                  </p>
+                </div>
+                {app.running ? (
+                  <ActionButton action={`stop:${app.name}`} label="stop" confirm="click again to stop" />
+                ) : (
+                  <ActionButton action={`start:${app.name}`} label="start" />
+                )}
+              </div>
+            ))}
             <div className="action">
               <div>
                 <h3>tidy up</h3>

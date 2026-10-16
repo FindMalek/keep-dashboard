@@ -29,6 +29,8 @@ MIN_UPTIME_FOR_REBOOT_SEC = 300
 # that aren't timers here (scheduled elsewhere, or planned). Edit <KEEP_DATA>/agent.json:
 #   {"jobs": {"keep-cleanup": "prunes old deployments"}, "external": [{"name": "...", "description": "...",
 #    "schedule": "daily 23:50 utc", "planned": false}]}
+# Apps that sleep when idle get start/stop buttons ("switches": name → docker ps filters):
+#   {"switches": {"minecraft": {"description": "game server", "filters": ["label=com.docker.compose.service=minecraft"]}}}
 DEFAULT_JOBS = {
     "keep-cleanup": "prunes old dokploy deployments",
     "keep-tidy": "frees disk space",
@@ -40,10 +42,18 @@ def load_config():
         config = json.load(open(f"{DATA}/agent.json"))
     except (OSError, ValueError):
         config = {}
-    return config.get("jobs", DEFAULT_JOBS), config.get("external", [])
+    return config.get("jobs", DEFAULT_JOBS), config.get("external", []), config.get("switches", {})
 
 
-JOBS, EXTERNAL = load_config()
+JOBS, EXTERNAL, SWITCHES = load_config()
+
+
+def switch_container(name):
+    args = ["docker", "ps", "-a", "--format", "{{.ID}} {{.State}}"]
+    for value in SWITCHES[name].get("filters", []):
+        args += ["--filter", value]
+    lines = subprocess.run(args, capture_output=True, text=True).stdout.split()
+    return (lines[0], lines[1]) if len(lines) >= 2 else (None, None)
 
 
 def now_iso():
@@ -118,7 +128,9 @@ def write_status():
         })
     for job in EXTERNAL:
         jobs.append({"planned": False, **job, "lastRun": None, "lastResult": None, "durationSec": None, "nextRun": None, "runnable": False})
-    write_json(JOBS_FILE, {"updatedAt": now_iso(), "jobs": jobs})
+    switches = [{"name": name, "description": entry.get("description", ""), "running": switch_container(name)[1] == "running"}
+                for name, entry in SWITCHES.items()]
+    write_json(JOBS_FILE, {"updatedAt": now_iso(), "jobs": jobs, "switches": switches})
 
 
 def journal(*args):
@@ -272,6 +284,13 @@ def handle_action(action):
         unit = f"{action[4:]}.service"
         result = subprocess.run(["systemctl", "start", "--no-block", unit], capture_output=True, text=True)
         return log_action(action, "done" if result.returncode == 0 else "failed", result.stderr.strip() or "started")
+    verb, _, name = action.partition(":")
+    if verb in ("start", "stop") and name in SWITCHES:
+        container, _ = switch_container(name)
+        if not container:
+            return log_action(action, "failed", "no container matches")
+        result = subprocess.run(["docker", verb, container], capture_output=True, text=True)
+        return log_action(action, "done" if result.returncode == 0 else "failed", result.stderr.strip() or ("started" if verb == "start" else "stopped"))
     return log_action(action[:60], "refused", "unknown action")
 
 
