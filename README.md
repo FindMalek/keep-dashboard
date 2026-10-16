@@ -51,8 +51,8 @@ browser ──SSE 1 s──▶ Bun server (container) ──reads──▶ host 
 - One Bun process collects everything and streams a snapshot every second over Server-Sent Events; long-term
   history (1-minute averages and peaks, 31 days) lives in SQLite.
 - The container never runs commands on the host. Buttons drop a request file into `/data/requests/`; the
-  **host agent** (`host/keep-agent.py`, a systemd path unit) accepts only `reboot`, `tidy` and `run:<known job>`,
-  and refuses everything else. Requests need an `x-keep-action` header, so other sites can't trigger them.
+  **host agent** (`host/keep-agent.py`, a systemd path unit) accepts only `reboot`, `tidy`, `run:<known job>` and
+  `start:`/`stop:<configured switch>`, and refuses everything else. Requests need an `x-keep-action` header, so other sites can't trigger them.
 - Every integration is optional: a panel shows "not reachable" or hides when its service isn't configured.
 
 ## Run it
@@ -70,7 +70,9 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
    cp host/systemd/* /etc/systemd/system/ && systemctl daemon-reload
    systemctl enable --now keep-agent.path keep-agent-status.timer keep-cleanup.timer keep-tidy.timer
    ```
-3. Optional: list your own systemd timers on the jobs page in `/srv/keep-dashboard/agent.json`.
+3. Optional: list your own systemd timers on the jobs page in `/srv/keep-dashboard/agent.json`, and apps that sleep
+   when idle under `switches` to get start/stop buttons:
+   `{"switches": {"minecraft": {"description": "game server", "filters": ["label=com.docker.compose.service=minecraft"]}}}`
 
 ### Security
 
@@ -81,7 +83,8 @@ it). The reference setup is Dokploy + Traefik with a Tailscale-only route.
 - **No Docker socket in the container.** Docker is read through `docker-proxy/`, which forwards only
   `GET /containers/json` (not inspect, which would show other containers' secrets), on a network only the dashboard
   shares.
-- **Buttons only ask.** The host agent decides: it accepts `reboot`, `tidy` and known jobs, refuses anything else.
+- **Buttons only ask.** The host agent decides: it accepts `reboot`, `tidy`, known jobs and start/stop of the
+  switches you configured (each must match exactly one container), and refuses anything else.
 
 ### Configuration
 

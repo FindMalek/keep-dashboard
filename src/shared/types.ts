@@ -184,9 +184,17 @@ export interface TidySummary {
 }
 
 /** Written by `keep-agent` / `keep-tidy` on the host. */
+/** An app that sleeps when idle, with start/stop buttons (agent.json `switches`). */
+export interface SwitchStatus {
+  name: string;
+  description: string;
+  running: boolean;
+}
+
 export interface JobsStats {
   updatedAt: string | null;
   jobs: JobStatus[];
+  switches: SwitchStatus[];
   actions: ActionRecord[];
   tidy: TidySummary | null;
 }
