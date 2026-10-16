@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Free disk space on the-keep without touching anything that holds data.
 
-Docker volumes, /srv data and running containers are never touched. Writes a summary to
+Docker volumes, /srv data and running containers are never touched, nor stopped ones labeled `keep.sleeps=true`
+(apps that stop themselves when idle and get started again later). Writes a summary to
 /srv/keep-dashboard/tidy.json for the dashboard.
 """
 
@@ -15,8 +16,10 @@ SUMMARY = os.path.join(os.environ.get("KEEP_DATA", "/srv/keep-dashboard"), "tidy
 
 STEPS = [
     ("dokploy deployments and orphaned folders", ["/usr/local/bin/keep-cleanup"]),
-    ("stopped containers older than 24h", ["docker", "container", "prune", "--force", "--filter", "until=24h"]),
-    ("dangling images", ["docker", "image", "prune", "--force"]),
+    ("stopped containers older than 24h", ["docker", "container", "prune", "--force", "--filter", "until=24h",
+                                           "--filter", "label!=keep.sleeps=true"]),
+    # Images any container still uses (a sleeping app's too) are never pruned.
+    ("unused images older than 7 days", ["docker", "image", "prune", "--all", "--force", "--filter", "until=168h"]),
     ("build cache older than 7 days", ["docker", "builder", "prune", "--force", "--filter", "until=168h"]),
     ("journal logs older than 14 days", ["journalctl", "--vacuum-time=14d"]),
     ("apt package cache", ["apt-get", "clean"]),
