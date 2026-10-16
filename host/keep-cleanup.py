@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Nightly Dokploy tidy-up on the-keep.
 
-Dokploy's own 23:50 job already prunes stopped containers, unused images, build cache and
-networks (never volumes), and keeps the last 10 deployments per service. This covers the rest:
+Docker leftovers (stopped containers, unused images, build cache) are keep-tidy's job; Dokploy's own
+daily cleanup is off on the keep because it also deleted apps that sleep. This covers Dokploy's side:
 deployments beyond the newest 3 per service (failed, stuck or just old), and log/code folders
 of services deleted from Dokploy.
 Containers Dokploy doesn't know about are only reported, never removed.
