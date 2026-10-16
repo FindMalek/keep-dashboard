@@ -4,7 +4,7 @@ import type { ActionRecord, JobsStats, TidySummary, UsageStats } from "../shared
 import { readText } from "../lib/host";
 
 /** The host agent re-checks everything; this list only keeps junk out of the request queue. */
-const ALLOWED = /^(reboot|tidy|run:keep-[a-z-]+|(start|stop):[a-z0-9-]+)$/;
+const ALLOWED = /^(reboot|tidy|run:keep-[a-z-]+|(start|stop):[a-z0-9_-]+)$/;
 
 async function readJson<T>(path: string, fallback: T): Promise<T> {
   try {

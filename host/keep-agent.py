@@ -49,11 +49,21 @@ JOBS, EXTERNAL, SWITCHES = load_config()
 
 
 def switch_container(name):
+    """(id, state) of the one container a switch's filters match; (None, None) if none, several or no filters."""
+    filters = SWITCHES[name].get("filters") or []
+    if not filters:
+        return None, None
     args = ["docker", "ps", "-a", "--format", "{{.ID}} {{.State}}"]
-    for value in SWITCHES[name].get("filters", []):
+    for value in filters:
         args += ["--filter", value]
-    lines = subprocess.run(args, capture_output=True, text=True).stdout.split()
-    return (lines[0], lines[1]) if len(lines) >= 2 else (None, None)
+    try:
+        lines = subprocess.run(args, capture_output=True, text=True, timeout=20).stdout.splitlines()
+    except subprocess.TimeoutExpired:
+        return None, None
+    if len(lines) != 1:
+        return None, None
+    container, _, state = lines[0].partition(" ")
+    return container, state
 
 
 def now_iso():
@@ -288,8 +298,12 @@ def handle_action(action):
     if verb in ("start", "stop") and name in SWITCHES:
         container, _ = switch_container(name)
         if not container:
-            return log_action(action, "failed", "no container matches")
-        result = subprocess.run(["docker", verb, container], capture_output=True, text=True)
+            return log_action(action, "failed", "needs exactly one matching container")
+        try:
+            # Stopping waits for the app's own shutdown (minecraft saves the world first).
+            result = subprocess.run(["docker", verb, container], capture_output=True, text=True, timeout=150)
+        except subprocess.TimeoutExpired:
+            return log_action(action, "failed", "docker didn't answer")
         return log_action(action, "done" if result.returncode == 0 else "failed", result.stderr.strip() or ("started" if verb == "start" else "stopped"))
     return log_action(action[:60], "refused", "unknown action")
 
