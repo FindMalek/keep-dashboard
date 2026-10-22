@@ -6,6 +6,7 @@ import { MemoryPanel } from "../components/memory-panel";
 import { NetworkPanel } from "../components/network-panel";
 import { PageHeader, Tabs } from "../components/page-header";
 import { SensorsPanel } from "../components/sensors-panel";
+import { SmartPanel } from "../components/smart-panel";
 import type { SeriesView } from "../components/sparkline";
 import { StoragePanel } from "../components/storage-panel";
 import { rangeLabel as meta } from "../lib/range-label";
@@ -89,6 +90,7 @@ export function SystemPage({ snapshot, history, historySize }: SystemPageProps) 
         <NetworkPanel network={snapshot.network} view={view} />
         <StoragePanel mounts={snapshot.mounts} disks={snapshot.disks} view={view} />
         <SensorsPanel sensors={snapshot.sensors} series={range === "live" ? undefined : view(tempKey)} />
+        <SmartPanel smart={snapshot.smart} />
         <ContainersPanel containers={snapshot.containers} series={range === "live" ? undefined : view("containers")} />
       </div>
     </>

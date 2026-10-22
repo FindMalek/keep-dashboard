@@ -1,0 +1,7 @@
+[Unit]
+Description=Reboot the-keep if a new kernel or security update requires it
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-upgrade
