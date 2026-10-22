@@ -48,6 +48,18 @@ export interface DiskStats {
   mounts: string[];
 }
 
+export interface SmartDisk {
+  device: string;
+  health: "passed" | "failed" | "unknown";
+  wearPercent: number | null;
+  temperatureC: number | null;
+}
+
+export interface SmartStats {
+  at: string | null;
+  disks: SmartDisk[];
+}
+
 export interface NetStats {
   name: string;
   label: string;
@@ -216,6 +228,7 @@ export interface Snapshot {
   disks: DiskStats[];
   network: NetStats[];
   sensors: SensorReading[];
+  smart: SmartStats;
   containers: ContainerStats[];
   garage: GarageStats;
   services: ServiceCheck[];

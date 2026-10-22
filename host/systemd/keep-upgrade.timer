@@ -1,0 +1,9 @@
+[Unit]
+Description=Run keep-upgrade monthly after keep-tidy
+
+[Timer]
+OnCalendar=Sun *-*-* 05:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

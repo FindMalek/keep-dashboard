@@ -417,6 +417,10 @@ ul {
   grid-template-columns: minmax(110px, 1fr) minmax(60px, 2fr) 36px;
 }
 
+.smart li {
+  grid-template-columns: minmax(110px, 1fr) auto auto;
+}
+
 .buckets li {
   grid-template-columns: minmax(80px, 1fr) minmax(60px, 2fr) auto 40px;
 }
