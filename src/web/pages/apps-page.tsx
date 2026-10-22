@@ -4,6 +4,7 @@ import { DomainList } from "../components/domain-list";
 import { PageHeader } from "../components/page-header";
 import { StatusSquare } from "../components/status-square";
 import { allServices, appStatus } from "../lib/app-status";
+import { descriptionFor } from "../lib/app-descriptions";
 import { bytes, duration, percent } from "../lib/format";
 
 const STATUS_TEXT: Record<string, string> = {
@@ -18,6 +19,18 @@ function since(iso: string): string {
   return seconds < 60 ? "just now" : `${duration(seconds)} ago`;
 }
 
+function ServiceName({ service }: { service: AppService }) {
+  const description = descriptionFor(service.name);
+  return (
+    <span className="service-name">
+      <a className="row-link" href={service.url} target="_blank" rel="noreferrer">
+        {service.name}
+      </a>
+      {description && <span className="service-tooltip">{description}</span>}
+    </span>
+  );
+}
+
 function ServiceRow({ service }: { service: AppService }) {
   const deploy = service.lastDeploy;
   const isDatabase = service.kind !== "application" && service.kind !== "compose";
@@ -28,9 +41,7 @@ function ServiceRow({ service }: { service: AppService }) {
         <StatusSquare status={appStatus(service)} />
       </td>
       <td>
-        <a className="row-link" href={service.url} target="_blank" rel="noreferrer">
-          {service.name}
-        </a>
+        <ServiceName service={service} />
       </td>
       <td className="muted hide-narrow">{service.kind}</td>
       <td className="hide-narrow">

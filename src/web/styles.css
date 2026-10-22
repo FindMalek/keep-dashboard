@@ -838,6 +838,31 @@ a:focus-visible {
   text-underline-offset: 3px;
 }
 
+.service-name {
+  position: relative;
+}
+
+.service-tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 5;
+  display: none;
+  max-width: 280px;
+  padding: 4px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  white-space: normal;
+  pointer-events: none;
+}
+
+.service-name:hover .service-tooltip {
+  display: block;
+}
+
 .domain {
   color: var(--muted);
   text-decoration: none;
