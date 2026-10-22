@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
-import type { ActionRecord, JobsStats, TidySummary, UsageStats } from "../shared/types";
+import type { ActionRecord, BackupStatus, JobsStats, TidySummary, UsageStats } from "../shared/types";
 import { readText } from "../lib/host";
 
 /** The host agent re-checks everything; this list only keeps junk out of the request queue. */
@@ -15,12 +15,13 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 export async function collectJobs(dataDir: string): Promise<JobsStats> {
-  const [status, actions, tidy] = await Promise.all([
+  const [status, actions, tidy, backup] = await Promise.all([
     readJson<Pick<JobsStats, "updatedAt" | "jobs" | "switches">>(`${dataDir}/jobs.json`, { updatedAt: null, jobs: [], switches: [] }),
     readJson<ActionRecord[]>(`${dataDir}/actions.json`, []),
     readJson<TidySummary | null>(`${dataDir}/tidy.json`, null),
+    readJson<BackupStatus | null>(`${dataDir}/backup-status.json`, null),
   ]);
-  return { ...status, switches: status.switches ?? [], actions, tidy };
+  return { ...status, switches: status.switches ?? [], actions, tidy, backup };
 }
 
 export async function collectUsage(dataDir: string): Promise<UsageStats> {

@@ -1,0 +1,6 @@
+[Unit]
+Description=Dump every Dokploy-managed database for Backrest
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-backup-pgdump

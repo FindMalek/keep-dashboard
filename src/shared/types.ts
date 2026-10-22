@@ -203,12 +203,20 @@ export interface SwitchStatus {
   running: boolean;
 }
 
+export interface BackupStatus {
+  at: string | null;
+  status: "success" | "failed" | "running" | "unknown";
+  sizeBytes: number | null;
+  durationSec: number | null;
+}
+
 export interface JobsStats {
   updatedAt: string | null;
   jobs: JobStatus[];
   switches: SwitchStatus[];
   actions: ActionRecord[];
   tidy: TidySummary | null;
+  backup: BackupStatus | null;
 }
 
 /** Where the "open ↗" links on panels point; each is optional and hidden when unset. */
