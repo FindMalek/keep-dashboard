@@ -1,4 +1,4 @@
-import type { JobStatus, JobsStats } from "../../shared/types";
+import type { BackupStatus, JobStatus, JobsStats } from "../../shared/types";
 import { ActionButton } from "../components/action-button";
 import { Chip } from "../components/chip";
 import { PageHeader } from "../components/page-header";
@@ -17,6 +17,23 @@ function jobStatus(job: JobStatus): Status | null {
   if (job.lastResult === "failed") return "down";
   if (job.lastResult === "running") return "warn";
   return job.lastResult === "success" ? "ok" : null;
+}
+
+function backupStatus(status: BackupStatus | null): Status | null {
+  if (!status) return null;
+  if (status.status === "success") return "ok";
+  if (status.status === "failed") return "down";
+  if (status.status === "running") return "warn";
+  return null;
+}
+
+function backupText(status: BackupStatus | null): string {
+  if (!status) return "not configured";
+  if (!status.at) return status.status;
+  const when = relative(Date.parse(status.at) / 1000);
+  const size = status.sizeBytes ? bytes(status.sizeBytes) : "unknown size";
+  const took = status.durationSec ? duration(status.durationSec) : null;
+  return `${status.status} · ${when} · ${size}${took ? ` · ${took}` : ""}`;
 }
 
 function JobRow({ job }: { job: JobStatus }) {
@@ -102,6 +119,15 @@ export function JobsPage({ jobs }: { jobs: JobsStats }) {
                 )}
               </div>
             ))}
+            <div className="action">
+              <div>
+                <h3>backups</h3>
+                <p className="muted small">
+                  {backupText(jobs.backup)}
+                </p>
+              </div>
+              {jobs.backup && backupStatus(jobs.backup) && <StatusSquare status={backupStatus(jobs.backup)!} />}
+            </div>
             <div className="action">
               <div>
                 <h3>tidy up</h3>
