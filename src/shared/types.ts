@@ -328,9 +328,18 @@ export interface Viewer {
   live: boolean;
 }
 
+export interface NetworkDevice {
+  ip: string;
+  mac: string | null;
+  name: string;
+  online: boolean;
+  storage: { used: number; total: number } | null;
+}
+
 export interface ActivityPayload {
   updatedAt: string | null;
   devices: Device[];
+  networkDevices: NetworkDevice[];
   openSessions: OpenSession[];
   events: HostEvent[];
   dokploySessions: DokploySession[];

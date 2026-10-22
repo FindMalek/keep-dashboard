@@ -25,6 +25,7 @@ import type {
   DeployEvent,
   DokploySession,
   InitialPayload,
+  NetworkDevice,
   Points,
   RangeName,
   Snapshot,
@@ -233,9 +234,13 @@ const server = Bun.serve({
     },
     "/api/activity": async () => {
       const host = JSON.parse((await readText(`${config.dataDir}/activity.json`)) ?? "{}") as Partial<ActivityPayload>;
+      const network = JSON.parse((await readText(`${config.dataDir}/network-devices.json`)) ?? "{}") as Partial<{
+        devices: NetworkDevice[];
+      }>;
       const payload: ActivityPayload = {
         updatedAt: host.updatedAt ?? null,
         devices: host.devices ?? [],
+        networkDevices: network.devices ?? [],
         openSessions: host.openSessions ?? [],
         events: host.events ?? [],
         dokploySessions,

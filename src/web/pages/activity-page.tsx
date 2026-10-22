@@ -46,6 +46,42 @@ function DevicesPanel({ data }: { data: ActivityPayload }) {
   );
 }
 
+function NetworkDevicesPanel({ data }: { data: ActivityPayload }) {
+  const online = data.networkDevices.filter((device) => device.online).length;
+  return (
+    <Panel title="lan devices" area="lan" meta={`${online} online · ${data.networkDevices.length} seen`}>
+      {data.networkDevices.length === 0 ? (
+        <p className="empty">no lan scan yet</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th aria-label="online" />
+              <th>device</th>
+              <th className="hide-narrow">ip</th>
+              <th className="hide-narrow">mac</th>
+              <th className="right hide-narrow">storage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.networkDevices.map((device) => (
+              <tr key={device.ip}>
+                <td>{device.online ? <StatusSquare status="ok" /> : <span className="status-square status-none" aria-label="offline" />}</td>
+                <td>{device.name}</td>
+                <td className="mono muted hide-narrow">{device.ip}</td>
+                <td className="mono muted hide-narrow">{device.mac ?? "—"}</td>
+                <td className="num right muted hide-narrow">
+                  {device.storage ? `${bytes(device.storage.used)} / ${bytes(device.storage.total)}` : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Panel>
+  );
+}
+
 function ConnectedPanel({ data }: { data: ActivityPayload }) {
   const who = (ip: string | null) => whoIs(ip, data.devices, data.publicIp);
   const recentViewers = data.viewers.filter((viewer) => viewer.live || Date.now() - viewer.lastSeen < 3600_000);
@@ -225,6 +261,7 @@ export function ActivityPage() {
       {data && (
         <div className="grid activity">
           <DevicesPanel data={data} />
+          <NetworkDevicesPanel data={data} />
           <ConnectedPanel data={data} />
           <TimelinePanel data={data} />
         </div>

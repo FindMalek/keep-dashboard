@@ -1,0 +1,6 @@
+[Unit]
+Description=Discover active devices on the LAN
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-network-devices
