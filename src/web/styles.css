@@ -844,26 +844,29 @@ a:focus-visible {
 
 .service-name {
   position: relative;
+  display: inline-block;
 }
 
 .service-tooltip {
   position: absolute;
   left: 0;
   top: calc(100% + 6px);
-  z-index: 5;
+  z-index: 50;
   display: none;
   max-width: 280px;
-  padding: 4px 6px;
-  font-size: 11px;
+  padding: 6px 8px;
+  font-size: 12px;
   line-height: 1.4;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
+  color: var(--bg);
+  background: var(--text);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   white-space: normal;
   pointer-events: none;
 }
 
-.service-name:hover .service-tooltip {
+.service-name:hover .service-tooltip,
+.service-name:focus-within .service-tooltip {
   display: block;
 }
 

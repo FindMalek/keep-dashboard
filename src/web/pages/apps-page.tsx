@@ -23,7 +23,7 @@ function ServiceName({ service }: { service: AppService }) {
   const description = descriptionFor(service.name);
   return (
     <span className="service-name">
-      <a className="row-link" href={service.url} target="_blank" rel="noreferrer">
+      <a className="row-link" href={service.url} target="_blank" rel="noreferrer" title={description}>
         {service.name}
       </a>
       {description && <span className="service-tooltip">{description}</span>}
