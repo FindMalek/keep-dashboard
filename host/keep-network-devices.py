@@ -30,7 +30,7 @@ def parse_arp():
                 if len(parts) < 4:
                     continue
                 ip, _, _, mac, _, state = parts[:6]
-                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I):
+                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I) or mac == "00:00:00:00:00:00" or not ip.startswith(f"{SUBNET}."):
                     continue
                 entries[ip] = {"mac": mac, "state": state}
     except OSError:
