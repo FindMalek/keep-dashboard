@@ -6,6 +6,11 @@ const REPOS = (process.env.KEEP_GITHUB_REPOS ?? "")
   .filter(Boolean);
 
 const TOKEN = process.env.KEEP_GITHUB_TOKEN ?? "";
+const REFRESH_MS = 60_000;
+const TIMEOUT_MS = 8_000;
+
+let last: { at: number; status: GitHubCiStatus | null } = { at: 0, status: null };
+let pending: Promise<GitHubCiStatus | null> | null = null;
 
 interface ApiRunner {
   id: number;
@@ -35,6 +40,7 @@ async function github<T>(path: string): Promise<T | null> {
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "keep-dashboard",
       },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) {
       console.error(`GitHub API error ${res.status}: ${path}`);
@@ -47,8 +53,15 @@ async function github<T>(path: string): Promise<T | null> {
   }
 }
 
+/** Called every 5 s with the rest of the jobs data: GitHub is asked once a minute, and the last good answer stands in when it fails. */
 export async function collectGitHubCi(): Promise<GitHubCiStatus | null> {
   if (REPOS.length === 0 || !TOKEN) return null;
+  if (Date.now() - last.at < REFRESH_MS) return last.status;
+  pending ??= fetchGitHubCi().finally(() => (pending = null));
+  return (await pending) ?? last.status;
+}
+
+async function fetchGitHubCi(): Promise<GitHubCiStatus | null> {
 
   const results = await Promise.all(
     REPOS.map(async (repo) => {
@@ -90,9 +103,12 @@ export async function collectGitHubCi(): Promise<GitHubCiStatus | null> {
     return bTime - aTime;
   });
 
-  return {
-    updatedAt: new Date().toISOString(),
-    runners,
-    runs: runs.slice(0, 20),
-  };
+  const status = { updatedAt: new Date().toISOString(), runners, runs: runs.slice(0, 20) };
+  // Every call failed (rate limit, outage): keep showing the last good panel and try again next tick.
+  if (!runners.length && !runs.length && last.status) {
+    last = { at: Date.now(), status: last.status };
+    return null;
+  }
+  last = { at: Date.now(), status };
+  return status;
 }
