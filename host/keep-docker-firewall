@@ -8,7 +8,7 @@ LAN="${KEEP_LAN:-192.168.1.0/24}"
 rule() { cmd="$1"; shift; "$cmd" -C DOCKER-USER "$@" 2>/dev/null || "$cmd" -I DOCKER-USER "$@"; }
 for port in 3000 3900 53; do
   for proto in tcp udp; do
-    rule iptables -i "$UPLINK" ! -s "$LAN" -p "$proto" -m conntrack --ctorigdstport "$port" -j DROP
-    rule ip6tables -i "$UPLINK" -p "$proto" -m conntrack --ctorigdstport "$port" -j DROP
+    rule iptables -i "$UPLINK" ! -s "$LAN" -p "$proto" -m conntrack --ctdir ORIGINAL --ctorigdstport "$port" -j DROP
+    rule ip6tables -i "$UPLINK" -p "$proto" -m conntrack --ctdir ORIGINAL --ctorigdstport "$port" -j DROP
   done
 done
