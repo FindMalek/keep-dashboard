@@ -38,17 +38,12 @@ def parse_arp():
     return entries
 
 
-def ping(ip):
-    result = run("ping", "-c", "1", "-W", TIMEOUT_S, ip, timeout=3)
-    return result.returncode == 0
-
-
 def hostname(ip):
     result = run("dig", "+short", "+time=1", "+tries=1", "-x", ip, timeout=3)
     if result.returncode != 0:
         return None
     name = result.stdout.strip().splitlines()[0] if result.stdout.strip() else None
-    return name.replace(".", "") if name else None
+    return name.rstrip(".") if name else None
 
 
 def keep_storage():
