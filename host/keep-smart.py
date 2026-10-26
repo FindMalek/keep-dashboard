@@ -36,10 +36,21 @@ def devices():
         yield path
 
 
-def parse_value(out, key):
+def attribute(out, name):
+    """Row of `smartctl -A` for one attribute name: (normalized value, raw value), or None."""
     for line in out.splitlines():
-        if line.strip().startswith(key):
-            match = re.search(r"(\d+)", line)
+        parts = line.split()
+        if len(parts) >= 10 and parts[1] == name and parts[0].isdigit():
+            raw = re.match(r"\d+", parts[9])
+            return (int(parts[3]), int(raw.group()) if raw else None)
+    return None
+
+
+def labelled(out, key):
+    """NVMe style `Key:   value` lines."""
+    for line in out.splitlines():
+        if line.startswith(key):
+            match = re.search(r"(\d+)", line.split(":", 1)[1])
             if match:
                 return int(match.group(1))
     return None
@@ -56,8 +67,19 @@ def health(path):
 
 def info(path):
     out = run("smartctl", "-A", path)
-    wear = parse_value(out, "Wear_Leveling_Count") or parse_value(out, "Media_Wearout_Indicator") or parse_value(out, "Percentage Used")
-    temperature = parse_value(out, "Temperature_Celsius") or parse_value(out, "Temperature")
+    wear = labelled(out, "Percentage Used")
+    if wear is None:
+        # SATA: the normalized value counts down from 100, so wear is what is gone.
+        for name in ("Wear_Leveling_Count", "Media_Wearout_Indicator", "SSD_Life_Left", "Percent_Lifetime_Remain"):
+            found = attribute(out, name)
+            if found:
+                wear = 100 - found[0]
+                break
+    temperature = labelled(out, "Temperature:")
+    for name in ("Temperature_Celsius", "Airflow_Temperature_Cel"):
+        found = attribute(out, name)
+        if temperature is None and found:
+            temperature = found[1]
     return {"wearPercent": wear, "temperatureC": temperature}
 
 
