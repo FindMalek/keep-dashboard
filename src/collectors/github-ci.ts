@@ -1,11 +1,12 @@
 import type { GitHubCiStatus, GitHubRun, GitHubRunner } from "../shared/types";
 
-const REPOS = (process.env.KEEP_GITHUB_REPOS ?? "")
-  .split(",")
-  .map((r) => r.trim())
-  .filter(Boolean);
+const repos = (): string[] =>
+  (process.env.KEEP_GITHUB_REPOS ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter(Boolean);
 
-const TOKEN = process.env.KEEP_GITHUB_TOKEN ?? "";
+const token = (): string => process.env.KEEP_GITHUB_TOKEN ?? "";
 const REFRESH_MS = 60_000;
 const TIMEOUT_MS = 8_000;
 
@@ -31,12 +32,12 @@ interface ApiRun {
 }
 
 async function github<T>(path: string): Promise<T | null> {
-  if (!TOKEN) return null;
+  if (!token()) return null;
   try {
     const res = await fetch(`https://api.github.com${path}`, {
       headers: {
         Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${TOKEN}`,
+        Authorization: `Bearer ${token()}`,
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "keep-dashboard",
       },
@@ -55,7 +56,7 @@ async function github<T>(path: string): Promise<T | null> {
 
 /** Called every 5 s with the rest of the jobs data: GitHub is asked once a minute, and the last good answer stands in when it fails. */
 export async function collectGitHubCi(): Promise<GitHubCiStatus | null> {
-  if (REPOS.length === 0 || !TOKEN) return null;
+  if (repos().length === 0 || !token()) return null;
   if (Date.now() - last.at < REFRESH_MS) return last.status;
   pending ??= fetchGitHubCi().finally(() => (pending = null));
   return (await pending) ?? last.status;
@@ -64,7 +65,7 @@ export async function collectGitHubCi(): Promise<GitHubCiStatus | null> {
 async function fetchGitHubCi(): Promise<GitHubCiStatus | null> {
 
   const results = await Promise.all(
-    REPOS.map(async (repo) => {
+    repos().map(async (repo) => {
       const [runnersData, runsData] = await Promise.all([
         github<{ runners: ApiRunner[] }>(`/repos/${repo}/actions/runners`),
         github<{ workflow_runs: ApiRun[] }>(`/repos/${repo}/actions/runs?per_page=5`),
