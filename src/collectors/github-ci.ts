@@ -63,7 +63,6 @@ export async function collectGitHubCi(): Promise<GitHubCiStatus | null> {
 }
 
 async function fetchGitHubCi(): Promise<GitHubCiStatus | null> {
-
   const results = await Promise.all(
     repos().map(async (repo) => {
       const [runnersData, runsData] = await Promise.all([

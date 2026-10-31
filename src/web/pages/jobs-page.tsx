@@ -71,7 +71,7 @@ function GitHubCiPanel({ github }: { github: GitHubCiStatus | null }) {
         <h2>github runners</h2>
         <span className="panel-meta">
           {online}/{github.runners.length} online · {busy} busy
-          {github.updatedAt && ` · ${since(Date.parse(github.updatedAt) / 1000)}`}
+          {github.updatedAt && ` · ${since(Date.parse(github.updatedAt))}`}
         </span>
       </header>
       <div className="panel-body">
@@ -126,7 +126,7 @@ function GitHubCiPanel({ github }: { github: GitHubCiStatus | null }) {
                   </td>
                   <td className="muted hide-narrow">{run.repo}</td>
                   <td className="muted hide-narrow">{run.branch}</td>
-                  <td className="num right muted">{run.startedAt ? since(Date.parse(run.startedAt) / 1000) : "—"}</td>
+                  <td className="num right muted">{run.startedAt ? since(Date.parse(run.startedAt)) : "—"}</td>
                 </tr>
               ))}
             </tbody>
