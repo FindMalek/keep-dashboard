@@ -15,7 +15,7 @@ test("keeps one entry per tool and machine and alerts once when weekly crosses 8
 
   const all = await readAiUsage(dir);
   expect(all).toHaveLength(1);
-  expect(all[0].weeklyPct).toBe(90);
+  expect(all[0]?.weeklyPct).toBe(90);
   expect(sent).toHaveLength(1);
   expect(await recordAiUsage(dir, { tool: "../x", machine: "mac", weeklyPct: 1 })).toBeNull();
 });
