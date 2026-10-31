@@ -78,6 +78,41 @@ function runStatus(run: GitHubRun): Status | null {
   return null;
 }
 
+function AiUsagePanel({ usage }: { usage: JobsStats["aiUsage"] }) {
+  if (!usage?.length) return null;
+  const fmt = (v: number | null, resets: string | null) =>
+    v === null ? "—" : `${Math.round(v)}%${resets ? ` · resets in ${until(resets)}` : ""}`;
+  return (
+    <section className="panel" aria-label="ai usage">
+      <header className="panel-header">
+        <h2>ai usage</h2>
+      </header>
+      <div className="panel-body">
+        <table>
+          <thead>
+            <tr><th>tool</th><th>machine</th><th>5 hours</th><th>week</th></tr>
+          </thead>
+          <tbody>
+            {usage.map((u) => (
+              <tr key={`${u.tool}:${u.machine}`}>
+                <td>{u.tool}</td>
+                <td className="muted">{u.machine}</td>
+                <td className="num">{fmt(u.fiveHourPct, u.fiveHourResetsAt)}</td>
+                <td className={`num${(u.weeklyPct ?? 0) >= 80 ? " down" : ""}`}>{fmt(u.weeklyPct, u.weeklyResetsAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function until(iso: string): string {
+  const minutes = Math.max(0, Math.round((Date.parse(iso) - Date.now()) / 60000));
+  return minutes < 60 ? `${minutes}m` : minutes < 2880 ? `${Math.round(minutes / 60)}h` : `${Math.round(minutes / 1440)}d`;
+}
+
 function GitHubCiPanel({ github }: { github: GitHubCiStatus | null }) {
   if (!github) return null;
   const online = github.runners.filter((r) => r.status === "online").length;
@@ -186,6 +221,8 @@ export function JobsPage({ jobs }: { jobs: JobsStats }) {
             </table>
           </div>
         </section>
+
+        <AiUsagePanel usage={jobs.aiUsage} />
 
         <GitHubCiPanel github={jobs.github} />
 

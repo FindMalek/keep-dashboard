@@ -236,6 +236,16 @@ export interface GitHubCiStatus {
   runs: GitHubRun[];
 }
 
+export interface AiUsageEntry {
+  tool: string;
+  machine: string;
+  fiveHourPct: number | null;
+  weeklyPct: number | null;
+  fiveHourResetsAt: string | null;
+  weeklyResetsAt: string | null;
+  at: string;
+}
+
 export interface JobsStats {
   updatedAt: string | null;
   jobs: JobStatus[];
@@ -244,6 +254,7 @@ export interface JobsStats {
   tidy: TidySummary | null;
   backup: BackupStatus | null;
   github: GitHubCiStatus | null;
+  aiUsage: AiUsageEntry[];
 }
 
 /** Where the "open ↗" links on panels point; each is optional and hidden when unset. */
