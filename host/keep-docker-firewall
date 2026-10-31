@@ -1,0 +1,14 @@
+#!/bin/sh
+# Docker-published ports skip ufw. Ports meant for the LAN and tailnet only (Dokploy 3000, Garage 3900, AdGuard 53)
+# are dropped when they arrive from outside the LAN on the uplink. Tailscale comes in on tailscale0, so it is untouched.
+# Idempotent; rerun by keep-docker-firewall.service whenever Docker starts. Override with KEEP_UPLINK / KEEP_LAN.
+set -eu
+UPLINK="${KEEP_UPLINK:-enp5s0}"
+LAN="${KEEP_LAN:-192.168.1.0/24}"
+rule() { cmd="$1"; shift; "$cmd" -C DOCKER-USER "$@" 2>/dev/null || "$cmd" -I DOCKER-USER "$@"; }
+for port in 3000 3900 53; do
+  for proto in tcp udp; do
+    rule iptables -i "$UPLINK" ! -s "$LAN" -p "$proto" -m conntrack --ctdir ORIGINAL --ctorigdstport "$port" -j DROP
+    rule ip6tables -i "$UPLINK" -p "$proto" -m conntrack --ctdir ORIGINAL --ctorigdstport "$port" -j DROP
+  done
+done

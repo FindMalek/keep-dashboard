@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 """Discover active devices on the LAN and write them for the dashboard.
 
-Runs every 5 minutes from keep-network-devices.timer.
-Tries multiple discovery methods:
-  1. arp-scan (ARP probes, no reliance on ICMP replies)
-  2. ping sweep of 192.168.1.0/24
-  3. /proc/net/arp and `ip neigh`
-
-Resolves names via mDNS (avahi) then reverse DNS.
-Storage is only shown for the-keep itself.
+Runs every 5 minutes from keep-network-devices.timer. Uses /proc/net/arp plus
+a ping sweep of 192.168.1.0/24. Storage is only shown for the-keep itself.
 """
 
 import json
@@ -20,11 +14,11 @@ from datetime import datetime, timezone
 
 OUT = "/srv/keep-dashboard/network-devices.json"
 SUBNET = "192.168.1"
-TIMEOUT_S = "2"
+TIMEOUT_S = "1"
 KEEP_LAN_IP = "192.168.1.81"
 
 
-def run(*args, timeout=15):
+def run(*args, timeout=10):
     return subprocess.run(args, capture_output=True, text=True, timeout=timeout)
 
 
@@ -37,83 +31,67 @@ def parse_arp():
                 if len(parts) < 4:
                     continue
                 ip, _, _, mac, _, state = parts[:6]
-                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I):
+                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I) or mac == "00:00:00:00:00:00" or not ip.startswith(f"{SUBNET}."):
                     continue
-                entries[ip] = {"mac": mac.upper(), "state": state}
+                entries[ip] = {"mac": mac, "state": state}
     except OSError:
         pass
     return entries
 
 
+MAC_RE = r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$"
+
+
 def parse_ip_neigh():
-    """Read the kernel neighbour table as a fallback."""
     entries = {}
     if not shutil.which("ip"):
         return entries
-    result = run("ip", "neigh", "show")
+    result = run("ip", "-4", "neigh", "show")
     for line in result.stdout.splitlines():
-        parts = line.strip().split()
-        if len(parts) < 4:
+        parts = line.split()
+        if len(parts) < 4 or "lladdr" not in parts or not parts[0].startswith(f"{SUBNET}."):
             continue
-        ip = parts[0]
-        state = parts[-1]
-        try:
-            mac_idx = parts.index("lladdr") + 1
-            mac = parts[mac_idx]
-        except (ValueError, IndexError):
-            continue
-        if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I):
-            continue
-        entries[ip] = {"mac": mac.upper(), "state": state}
+        mac_idx = parts.index("lladdr") + 1
+        if mac_idx < len(parts) and re.match(MAC_RE, parts[mac_idx], re.I):
+            entries[parts[0]] = {"mac": parts[mac_idx].upper(), "state": parts[-1]}
     return entries
+
+
+def lan_interfaces():
+    if not shutil.which("ip"):
+        return []
+    result = run("ip", "-o", "-4", "addr", "show")
+    names = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) > 3 and parts[3].startswith(f"{SUBNET}."):
+            names.append(parts[1])
+    return names
 
 
 def arp_scan():
-    """Use arp-scan to actively probe every IP on the subnet."""
     if not shutil.which("arp-scan"):
         return {}
     entries = {}
-    result = run("arp-scan", "-q", "-l", "-I", "eth0", f"{SUBNET}.0/24", timeout=60)
-    # Also try common interface names if eth0 fails.
-    if result.returncode != 0:
-        for iface in ("enp", "ens", "wlan", "br-"):
-            # Find first matching interface.
-            try:
-                iface_name = next(
-                    line.split()[0]
-                    for line in run("ip", "link", "show").stdout.splitlines()
-                    if f"{iface}" in line and "state UP" in line
-                )
-                result = run("arp-scan", "-q", "-l", "-I", iface_name, f"{SUBNET}.0/24", timeout=60)
-                if result.returncode == 0:
-                    break
-            except StopIteration:
-                continue
-    for line in result.stdout.splitlines():
-        match = re.match(r"^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s+([0-9a-f:]{17})", line, re.I)
-        if match:
-            ip, mac = match.groups()
-            entries[ip] = {"mac": mac.upper(), "state": "REACHABLE"}
+    for iface in lan_interfaces():
+        result = run("arp-scan", "-q", "-l", "-I", iface, timeout=60)
+        for line in result.stdout.splitlines():
+            match = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f:]{17})", line, re.I)
+            if match and match.group(1).startswith(f"{SUBNET}."):
+                entries[match.group(1)] = {"mac": match.group(2).upper(), "state": "REACHABLE"}
     return entries
-
-
-def ping(ip):
-    result = run("ping", "-c", "1", "-W", TIMEOUT_S, ip, timeout=5)
-    return result.returncode == 0
 
 
 def mdns_name(ip):
     if not shutil.which("avahi-resolve-address"):
         return None
     result = run("avahi-resolve-address", ip, timeout=5)
-    if result.returncode != 0:
-        return None
-    parts = result.stdout.strip().split()
-    return parts[1] if len(parts) >= 2 else None
+    parts = result.stdout.split()
+    return parts[1].rstrip(".") if result.returncode == 0 and len(parts) >= 2 else None
 
 
 def dns_name(ip):
-    result = run("dig", "+short", "+time=1", "+tries=1", "-x", ip, timeout=5)
+    result = run("dig", "+short", "+time=1", "+tries=1", "-x", ip, timeout=3)
     if result.returncode != 0:
         return None
     name = result.stdout.strip().splitlines()[0] if result.stdout.strip() else None
@@ -122,17 +100,6 @@ def dns_name(ip):
 
 def hostname(ip):
     return mdns_name(ip) or dns_name(ip)
-
-
-def vendor(mac):
-    """Best-effort vendor from MAC OUI using ieee-data if available."""
-    if not shutil.which("arp"):
-        return None
-    result = run("arp", "-a", timeout=5)
-    for line in result.stdout.splitlines():
-        if mac.lower() in line.lower():
-            return None  # arp -a doesn't give vendor; placeholder
-    return None
 
 
 def keep_storage():
@@ -147,28 +114,17 @@ def keep_storage():
 
 def discover():
     arp = parse_arp()
-    neigh = parse_ip_neigh()
-    scanned = arp_scan()
-
-    # Merge all known MAC sources.
-    by_ip = {}
-    for source in (arp, neigh, scanned):
+    for source in (parse_ip_neigh(), arp_scan()):
         for ip, entry in source.items():
-            if ip in by_ip:
-                by_ip[ip]["mac"] = by_ip[ip].get("mac") or entry.get("mac")
-                by_ip[ip]["state"] = entry.get("state") or by_ip[ip].get("state")
-            else:
-                by_ip[ip] = entry.copy()
-
+            arp.setdefault(ip, entry)
     online = set()
 
-    # Ping sweep in larger batches, but only for IPs we haven't already seen via ARP.
-    known_ips = set(by_ip.keys())
-    ips_to_ping = [f"{SUBNET}.{i}" for i in range(1, 255) if f"{SUBNET}.{i}" not in known_ips]
-    batch = 40
-    for i in range(0, len(ips_to_ping), batch):
+    # Ping sweep in batches.
+    ips = [f"{SUBNET}.{i}" for i in range(1, 255)]
+    batch = 25
+    for i in range(0, len(ips), batch):
         processes = []
-        for ip in ips_to_ping[i : i + batch]:
+        for ip in ips[i : i + batch]:
             proc = subprocess.Popen(
                 ["ping", "-c", "1", "-W", TIMEOUT_S, ip],
                 stdout=subprocess.DEVNULL,
@@ -177,19 +133,19 @@ def discover():
             processes.append((ip, proc))
         for ip, proc in processes:
             try:
-                if proc.wait(5) == 0:
+                if proc.wait(3) == 0:
                     online.add(ip)
             except subprocess.TimeoutExpired:
                 proc.kill()
 
-    candidates = set(online) | set(by_ip.keys())
+    candidates = set(online) | set(arp.keys())
     devices = []
     storage = keep_storage()
 
     for ip in sorted(candidates, key=lambda x: [int(n) for n in x.split(".")]):
-        entry = by_ip.get(ip, {})
+        entry = arp.get(ip, {})
         name = hostname(ip) or entry.get("mac") or ip
-        is_online = ip in online or entry.get("state") in ("REACHABLE", "STALE", "DELAY", "PROBE")
+        is_online = ip in online or entry.get("state") == "REACHABLE"
         is_keep = ip == KEEP_LAN_IP
         devices.append(
             {
