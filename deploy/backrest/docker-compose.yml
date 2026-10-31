@@ -7,7 +7,7 @@
 # 1. Deploy this compose.
 # 2. Open https://backups.findmalek.engineer and add a plan:
 #    - paths: /srv (configs and app data), /staging (pg_dump outputs)
-#    - exclude: /srv/docker, /srv/containerd, /srv/music (re-buyable)
+#    - exclude: /srv/docker, /srv/containerd, /srv/music (re-buyable), /srv/backrest (its own state; dumps are backed up via /staging)
 #    - repo: b2:<bucket>:<path>
 #    - schedule: daily, retention 7 daily / 4 weekly / 6 monthly
 # 3. Enable the nightly pg-dump timer on the host (dashboard/host/keep-backup-pgdump.py).
@@ -21,6 +21,7 @@ services:
       B2_ACCOUNT_ID: ${B2_ACCOUNT_ID:?set B2_ACCOUNT_ID}
       B2_ACCOUNT_KEY: ${B2_ACCOUNT_KEY:?set B2_ACCOUNT_KEY}
       BACKREST_DATA: /data
+      BACKREST_CONFIG: /data/config/config.json
     volumes:
       - /srv/backrest:/data
       - /srv:/srv:ro

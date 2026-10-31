@@ -8,6 +8,7 @@ a ping sweep of 192.168.1.0/24. Storage is only shown for the-keep itself.
 import json
 import os
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 
@@ -30,7 +31,7 @@ def parse_arp():
                 if len(parts) < 4:
                     continue
                 ip, _, _, mac, _, state = parts[:6]
-                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I):
+                if not re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", mac, re.I) or mac == "00:00:00:00:00:00" or not ip.startswith(f"{SUBNET}."):
                     continue
                 entries[ip] = {"mac": mac, "state": state}
     except OSError:
@@ -38,17 +39,67 @@ def parse_arp():
     return entries
 
 
-def ping(ip):
-    result = run("ping", "-c", "1", "-W", TIMEOUT_S, ip, timeout=3)
-    return result.returncode == 0
+MAC_RE = r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$"
 
 
-def hostname(ip):
+def parse_ip_neigh():
+    entries = {}
+    if not shutil.which("ip"):
+        return entries
+    result = run("ip", "-4", "neigh", "show")
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 4 or "lladdr" not in parts or not parts[0].startswith(f"{SUBNET}."):
+            continue
+        mac_idx = parts.index("lladdr") + 1
+        if mac_idx < len(parts) and re.match(MAC_RE, parts[mac_idx], re.I):
+            entries[parts[0]] = {"mac": parts[mac_idx].upper(), "state": parts[-1]}
+    return entries
+
+
+def lan_interfaces():
+    if not shutil.which("ip"):
+        return []
+    result = run("ip", "-o", "-4", "addr", "show")
+    names = []
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) > 3 and parts[3].startswith(f"{SUBNET}."):
+            names.append(parts[1])
+    return names
+
+
+def arp_scan():
+    if not shutil.which("arp-scan"):
+        return {}
+    entries = {}
+    for iface in lan_interfaces():
+        result = run("arp-scan", "-q", "-l", "-I", iface, timeout=60)
+        for line in result.stdout.splitlines():
+            match = re.match(r"^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f:]{17})", line, re.I)
+            if match and match.group(1).startswith(f"{SUBNET}."):
+                entries[match.group(1)] = {"mac": match.group(2).upper(), "state": "REACHABLE"}
+    return entries
+
+
+def mdns_name(ip):
+    if not shutil.which("avahi-resolve-address"):
+        return None
+    result = run("avahi-resolve-address", ip, timeout=5)
+    parts = result.stdout.split()
+    return parts[1].rstrip(".") if result.returncode == 0 and len(parts) >= 2 else None
+
+
+def dns_name(ip):
     result = run("dig", "+short", "+time=1", "+tries=1", "-x", ip, timeout=3)
     if result.returncode != 0:
         return None
     name = result.stdout.strip().splitlines()[0] if result.stdout.strip() else None
-    return name.replace(".", "") if name else None
+    return name.rstrip(".") if name else None
+
+
+def hostname(ip):
+    return mdns_name(ip) or dns_name(ip)
 
 
 def keep_storage():
@@ -63,6 +114,9 @@ def keep_storage():
 
 def discover():
     arp = parse_arp()
+    for source in (parse_ip_neigh(), arp_scan()):
+        for ip, entry in source.items():
+            arp.setdefault(ip, entry)
     online = set()
 
     # Ping sweep in batches.

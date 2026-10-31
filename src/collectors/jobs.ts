@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import type { ActionRecord, BackupStatus, JobsStats, TidySummary, UsageStats } from "../shared/types";
 import { readText } from "../lib/host";
+import { collectGitHubCi } from "./github-ci";
 
 /** The host agent re-checks everything; this list only keeps junk out of the request queue. */
 const ALLOWED = /^(reboot|tidy|run:keep-[a-z-]+|(start|stop):[a-z0-9_-]+)$/;
@@ -15,13 +16,14 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 export async function collectJobs(dataDir: string): Promise<JobsStats> {
-  const [status, actions, tidy, backup] = await Promise.all([
+  const [status, actions, tidy, backup, github] = await Promise.all([
     readJson<Pick<JobsStats, "updatedAt" | "jobs" | "switches">>(`${dataDir}/jobs.json`, { updatedAt: null, jobs: [], switches: [] }),
     readJson<ActionRecord[]>(`${dataDir}/actions.json`, []),
     readJson<TidySummary | null>(`${dataDir}/tidy.json`, null),
     readJson<BackupStatus | null>(`${dataDir}/backup-status.json`, null),
+    collectGitHubCi(),
   ]);
-  return { ...status, switches: status.switches ?? [], actions, tidy, backup };
+  return { ...status, switches: status.switches ?? [], actions, tidy, backup, github };
 }
 
 export async function collectUsage(dataDir: string): Promise<UsageStats> {

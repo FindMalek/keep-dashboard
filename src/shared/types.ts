@@ -210,6 +210,32 @@ export interface BackupStatus {
   durationSec: number | null;
 }
 
+export interface GitHubRunner {
+  id: number;
+  name: string;
+  repo: string;
+  status: "online" | "offline";
+  busy: boolean;
+  labels: string[];
+}
+
+export interface GitHubRun {
+  id: number;
+  repo: string;
+  workflow: string;
+  status: string;
+  conclusion: string | null;
+  branch: string;
+  url: string;
+  startedAt: string | null;
+}
+
+export interface GitHubCiStatus {
+  updatedAt: string | null;
+  runners: GitHubRunner[];
+  runs: GitHubRun[];
+}
+
 export interface JobsStats {
   updatedAt: string | null;
   jobs: JobStatus[];
@@ -217,6 +243,7 @@ export interface JobsStats {
   actions: ActionRecord[];
   tidy: TidySummary | null;
   backup: BackupStatus | null;
+  github: GitHubCiStatus | null;
 }
 
 /** Where the "open ↗" links on panels point; each is optional and hidden when unset. */
