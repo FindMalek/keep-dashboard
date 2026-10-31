@@ -15,6 +15,7 @@ import { checkServices } from "./collectors/services";
 import { collectHost, publicIp, resolveIp } from "./collectors/system";
 import { createAppsCollector } from "./collectors/apps";
 import { collectJobs, collectUsage, requestAction } from "./collectors/jobs";
+import { recordAiUsage } from "./collectors/ai-usage";
 import { createKumaCollector } from "./collectors/kuma";
 import { createHomeCollector } from "./collectors/home";
 import { ViewerLog } from "./lib/viewers";
@@ -60,7 +61,7 @@ const slow: Pick<Snapshot, "mounts" | "containers" | "garage" | "services" | "ap
   garage: { healthy: null, buckets: [] },
   services: [],
   apps: { reachable: false, projects: [], cleanupRuns: [] },
-  jobs: { updatedAt: null, jobs: [], switches: [], actions: [], tidy: null, backup: null, github: null },
+  jobs: { updatedAt: null, jobs: [], switches: [], actions: [], tidy: null, backup: null, github: null, aiUsage: [] },
   uptime: { reachable: false, monitors: [] },
   usage: { at: null, paths: {} },
   smart: { at: null, disks: [] },
@@ -212,6 +213,19 @@ const server = Bun.serve({
         if (!accepted) return new Response("unknown action", { status: 400 });
         // Pick up the agent's result quickly instead of waiting for the next 5 s refresh.
         setTimeout(async () => (slow.jobs = await collectJobs(config.dataDir)), 3000);
+        return new Response(null, { status: 202 });
+      },
+    },
+    "/api/ai-usage": {
+      POST: async (request: Request) => {
+        if (request.headers.get("x-keep-action") !== "1") return new Response("missing header", { status: 403 });
+        const ntfy = process.env.KEEP_NTFY_URL;
+        const notify = async (message: string) => {
+          if (ntfy) await fetch(ntfy, { method: "POST", body: message, signal: AbortSignal.timeout(5000) }).catch(() => {});
+        };
+        const entry = await recordAiUsage(config.dataDir, await request.json().catch(() => null), notify);
+        if (!entry) return new Response("bad payload", { status: 400 });
+        slow.jobs = await collectJobs(config.dataDir);
         return new Response(null, { status: 202 });
       },
     },
