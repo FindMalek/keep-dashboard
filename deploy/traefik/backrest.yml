@@ -1,0 +1,16 @@
+# Lives at /etc/dokploy/traefik/dynamic/backrest.yml on the-keep.
+# Tailnet only: backups.findmalek.engineer → backrest:9898.
+http:
+  routers:
+    backrest:
+      rule: Host(`backups.findmalek.engineer`)
+      entryPoints: [websecure]
+      middlewares: [tailnet-only]
+      service: backrest
+      tls:
+        certResolver: vercel
+  services:
+    backrest:
+      loadBalancer:
+        servers:
+          - url: http://backrest:9898

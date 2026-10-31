@@ -1,0 +1,40 @@
+# Dokploy: project "Infrastructure" → compose "backrest" (source: Raw).
+# Web UI for restic backups. Tailnet only: backups.findmalek.engineer.
+# Fill BACKREST_PASSWORD and B2 credentials in the compose's Environment tab.
+# The repo password is in Vaultwarden; the restic repo itself is encrypted.
+#
+# First-time setup:
+# 1. Deploy this compose.
+# 2. Open https://backups.findmalek.engineer and add a plan:
+#    - paths: /srv (configs and app data), /staging (pg_dump outputs)
+#    - exclude: /srv/docker, /srv/containerd, /srv/music (re-buyable), /srv/backrest (its own state; dumps are backed up via /staging)
+#    - repo: b2:<bucket>:<path>
+#    - schedule: daily, retention 7 daily / 4 weekly / 6 monthly
+# 3. Enable the nightly pg-dump timer on the host (dashboard/host/keep-backup-pgdump.py).
+services:
+  backrest:
+    image: garethgeorge/backrest:latest
+    restart: unless-stopped
+    environment:
+      # Backblaze B2 native restic backend.
+      # Get these from the B2 application key: https://secure.backblaze.com/app_keys.htm
+      B2_ACCOUNT_ID: ${B2_ACCOUNT_ID:?set B2_ACCOUNT_ID}
+      B2_ACCOUNT_KEY: ${B2_ACCOUNT_KEY:?set B2_ACCOUNT_KEY}
+      BACKREST_DATA: /data
+      BACKREST_CONFIG: /data/config/config.json
+    volumes:
+      - /srv/backrest:/data
+      - /srv:/srv:ro
+      # Staging folder for pg_dump outputs before restic picks them up.
+      - /srv/backrest/staging:/staging
+    labels:
+      keep.project: infrastructure
+      keep.domains: backups.findmalek.engineer
+    networks:
+      dokploy-network:
+        aliases:
+          - backrest
+
+networks:
+  dokploy-network:
+    external: true

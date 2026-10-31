@@ -203,6 +203,13 @@ export interface SwitchStatus {
   running: boolean;
 }
 
+export interface BackupStatus {
+  at: string | null;
+  status: "success" | "failed" | "running" | "unknown";
+  sizeBytes: number | null;
+  durationSec: number | null;
+}
+
 export interface GitHubRunner {
   id: number;
   name: string;
@@ -235,6 +242,7 @@ export interface JobsStats {
   switches: SwitchStatus[];
   actions: ActionRecord[];
   tidy: TidySummary | null;
+  backup: BackupStatus | null;
   github: GitHubCiStatus | null;
 }
 

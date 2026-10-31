@@ -1,0 +1,6 @@
+[Unit]
+Description=Summarise latest Backrest backup for the dashboard
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/keep-backup-status

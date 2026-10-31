@@ -60,7 +60,7 @@ const slow: Pick<Snapshot, "mounts" | "containers" | "garage" | "services" | "ap
   garage: { healthy: null, buckets: [] },
   services: [],
   apps: { reachable: false, projects: [], cleanupRuns: [] },
-  jobs: { updatedAt: null, jobs: [], switches: [], actions: [], tidy: null, github: null },
+  jobs: { updatedAt: null, jobs: [], switches: [], actions: [], tidy: null, backup: null, github: null },
   uptime: { reachable: false, monitors: [] },
   usage: { at: null, paths: {} },
   smart: { at: null, disks: [] },
